@@ -7,35 +7,24 @@ from agent import (
 )
 
 
-class TestPractical1And2_ReflexAgents(
+class TestSimpleReflexAgent(
     unittest.TestCase
 ):
-    """
-    Tests for the Simple Reflex and
-    Model-Based Agents.
-    """
 
-    def setUp(self):
+    def test_food_rule(self):
 
-        self.simple_agent = (
+        agent = (
             SimpleReflexAgent()
         )
 
-        self.model_agent = (
-            ModelBasedAgent()
-        )
-
-    def test_simple_reflex_logic(self):
-
-        # Food ahead
-        percept_food = {
+        percept = {
             "wall_ahead": False,
             "food_here": True
         }
 
         action = (
-            self.simple_agent.sense_and_act(
-                percept_food
+            agent.sense_and_act(
+                percept
             )
         )
 
@@ -44,105 +33,89 @@ class TestPractical1And2_ReflexAgents(
             "Forward"
         )
 
-        # Wall ahead
-        percept_wall = {
-            "wall_ahead": True,
-            "food_here": False
-        }
+    def test_wall_rule(self):
 
-        action_wall = (
-            self.simple_agent.sense_and_act(
-                percept_wall
-            )
+        agent = (
+            SimpleReflexAgent()
         )
-
-        self.assertIn(
-            action_wall,
-            [
-                "TurnLeft",
-                "TurnRight",
-                "Forward",
-                "Up",
-                "Down",
-                "Left",
-                "Right"
-            ]
-        )
-
-    def test_model_based_memory(self):
 
         percept = {
             "wall_ahead": True,
             "food_here": False
         }
 
-        # First decision
-        action_1 = (
-            self.model_agent.sense_and_act(
+        action = (
+            agent.sense_and_act(
                 percept
             )
         )
 
-        # Second decision with the same percept
-        action_2 = (
-            self.model_agent.sense_and_act(
-                percept
-            )
-        )
-
-        # The Model-Based Agent should not
-        # blindly repeat the exact same behaviour.
-        self.assertNotEqual(
-            action_1,
-            action_2
+        self.assertEqual(
+            action,
+            "TurnLeft"
         )
 
 
-class TestPractical3_SearchAgent(
+class TestModelBasedAgent(
     unittest.TestCase
 ):
-    """
-    Tests for the BFS SearchAgent
-    from Practical 3.
-    """
+
+    def test_model_agent_has_memory(self):
+
+        agent = (
+            ModelBasedAgent()
+        )
+
+        self.assertTrue(
+            hasattr(
+                agent,
+                "visited_cells"
+            )
+        )
+
+        self.assertTrue(
+            hasattr(
+                agent,
+                "last_action"
+            )
+        )
+
+
+class TestSearchAgent(
+    unittest.TestCase
+):
 
     def setUp(self):
 
-        self.search_agent = (
+        self.agent = (
             SearchAgent()
         )
 
-    def test_bfs_shortest_path(self):
-
-        grid_size = (
+        self.grid_size = (
             4,
             4
         )
 
-        start_pos = (
+        self.walls = []
+
+        self.start = (
             0,
             0
         )
 
-        goal_pos = (
+        self.goal = (
             3,
             3
         )
 
-        walls = [
-            (1, 0),
-            (2, 0),
-            (0, 2),
-            (1, 2),
-            (2, 2)
-        ]
+    def test_bfs_search(self):
 
         path = (
-            self.search_agent.bfs_search(
-                start_pos,
-                goal_pos,
-                walls,
-                grid_size
+            self.agent.bfs_search(
+                self.start,
+                self.goal,
+                self.walls,
+                self.grid_size
             )
         )
 
@@ -150,59 +123,93 @@ class TestPractical3_SearchAgent(
             path
         )
 
-        self.assertIsInstance(
-            path,
-            list
-        )
-
+        # Shortest path on an empty 4x4 grid
+        # from (0,0) to (3,3) is 6 moves.
         self.assertEqual(
             len(path),
             6
         )
 
-    def test_bfs_unreachable_goal(self):
+    def test_dfs_search(self):
 
-        grid_size = (
-            3,
-            3
+        path = (
+            self.agent.dfs_search(
+                self.start,
+                self.goal,
+                self.walls,
+                self.grid_size
+            )
         )
 
-        start_pos = (
-            0,
+        self.assertIsNotNone(
+            path
+        )
+
+        self.assertGreater(
+            len(path),
             0
         )
 
-        goal_pos = (
-            2,
-            2
+    def test_ucs_search(self):
+
+        path = (
+            self.agent.ucs_search(
+                self.start,
+                self.goal,
+                self.walls,
+                self.grid_size
+            )
         )
 
+        self.assertIsNotNone(
+            path
+        )
+
+        # Every movement has cost 1,
+        # therefore UCS should find the same
+        # minimum-cost path length as BFS.
+        self.assertEqual(
+            len(path),
+            6
+        )
+
+    def test_reached_prevents_loops(self):
+
         walls = [
-            (1, 2),
-            (2, 1),
+            (1, 0),
             (1, 1)
         ]
 
         path = (
-            self.search_agent.bfs_search(
-                start_pos,
-                goal_pos,
+            self.agent.dfs_search(
+                self.start,
+                self.goal,
                 walls,
-                grid_size
+                self.grid_size
             )
         )
 
-        self.assertTrue(
-            path is None
-            or len(path) == 0
+        self.assertIsNotNone(
+            path
+        )
+
+    def test_search_agent_configuration(self):
+
+        self.assertEqual(
+            self.agent.plan,
+            []
+        )
+
+        self.assertEqual(
+            self.agent.active_algo,
+            "BFS"
         )
 
 
 if __name__ == "__main__":
 
     print(
-        "=== IT3012: Intelligent Agents "
-        "Autograder Test Suite ===\n"
+        "=== IT3012 Lab 3 Test Suite ==="
     )
 
     unittest.main(

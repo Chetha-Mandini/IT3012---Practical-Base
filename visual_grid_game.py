@@ -3,17 +3,12 @@ import tkinter as tk
 
 from agent import (
     SimpleReflexAgent,
-    ModelBasedAgent
+    ModelBasedAgent,
+    SearchAgent
 )
 
 
 class VisualGridHuntGame:
-    """
-    Visual grid environment.
-
-    The agent only receives local percept information.
-    Global coordinates remain hidden from the agent.
-    """
 
     def __init__(
         self,
@@ -28,12 +23,14 @@ class VisualGridHuntGame:
         self.width = width
         self.height = height
 
-        # Actual agent position
         self.agent_pos = [0, 0]
 
         self.agent = agent
 
+        # -----------------------------------------
         # Walls
+        # -----------------------------------------
+
         if custom_walls is not None:
 
             self.walls = set(
@@ -50,7 +47,10 @@ class VisualGridHuntGame:
                 (3, 7)
             }
 
-        # Generate food
+        # -----------------------------------------
+        # Food
+        # -----------------------------------------
+
         self.food_positions = set()
 
         while len(
@@ -82,7 +82,10 @@ class VisualGridHuntGame:
                     position
                 )
 
-        # Generate opponents
+        # -----------------------------------------
+        # Opponents
+        # -----------------------------------------
+
         self.opponents = []
 
         while len(
@@ -119,11 +122,12 @@ class VisualGridHuntGame:
                     opponent_position
                 )
 
-        # Hidden state
         self.facing = "Right"
 
         self.score = 0
+
         self.steps = 0
+
         self.collision = False
 
     def _forward_position(self):
@@ -131,15 +135,19 @@ class VisualGridHuntGame:
         x, y = self.agent_pos
 
         if self.facing == "Up":
+
             y += 1
 
         elif self.facing == "Down":
+
             y -= 1
 
         elif self.facing == "Left":
+
             x -= 1
 
         elif self.facing == "Right":
+
             x += 1
 
         return (
@@ -149,23 +157,28 @@ class VisualGridHuntGame:
 
     def get_percept(self):
         """
-        PARTIAL OBSERVABILITY
+        Return the percept available to the agent.
 
-        The agent receives only:
-
+        LAB 2:
             wall_ahead
             food_here
 
-        It does NOT receive:
+        LAB 3:
+            grid_size
+            walls
+            all_food
 
-            agent_pos
-            wall coordinates
-            food coordinates
-            score
-            opponent positions
+        The three additional values expose the world model
+        so that the SearchAgent can perform BFS, DFS and UCS.
         """
 
-        forward = self._forward_position()
+        forward = (
+            self._forward_position()
+        )
+
+        # -----------------------------------------
+        # Local percept from Lab 2
+        # -----------------------------------------
 
         wall_ahead = (
             forward[0] < 0
@@ -176,21 +189,43 @@ class VisualGridHuntGame:
         )
 
         food_here = (
-            forward in self.food_positions
+            forward
+            in self.food_positions
         )
 
+        # -----------------------------------------
+        # Lab 3 global state
+        # -----------------------------------------
+
         return {
+
+            # Lab 2 local percept
             "wall_ahead": wall_ahead,
-            "food_here": food_here
+
+            "food_here": food_here,
+
+            # Lab 3 world model
+            "grid_size": (
+                self.width,
+                self.height
+            ),
+
+            "walls": list(
+                self.walls
+            ),
+
+            "all_food": list(
+                self.food_positions
+            )
         }
 
     def execute_action(self, action):
 
         self.steps += 1
 
-        # ----------------------------------
+        # -----------------------------------------
         # Turn Left
-        # ----------------------------------
+        # -----------------------------------------
 
         if action == "TurnLeft":
 
@@ -209,9 +244,9 @@ class VisualGridHuntGame:
                 (index + 1) % 4
             ]
 
-        # ----------------------------------
+        # -----------------------------------------
         # Turn Right
-        # ----------------------------------
+        # -----------------------------------------
 
         elif action == "TurnRight":
 
@@ -230,9 +265,9 @@ class VisualGridHuntGame:
                 (index + 1) % 4
             ]
 
-        # ----------------------------------
-        # Move Forward
-        # ----------------------------------
+        # -----------------------------------------
+        # Movement
+        # -----------------------------------------
 
         else:
 
@@ -246,6 +281,7 @@ class VisualGridHuntGame:
             ):
 
                 direction = action
+
                 self.facing = action
 
             new_pos = list(
@@ -253,38 +289,57 @@ class VisualGridHuntGame:
             )
 
             if direction == "Up":
+
                 new_pos[1] += 1
 
             elif direction == "Down":
+
                 new_pos[1] -= 1
 
             elif direction == "Left":
+
                 new_pos[0] -= 1
 
             elif direction == "Right":
+
                 new_pos[0] += 1
 
+            # -----------------------------------------
             # Boundary collision
+            # -----------------------------------------
+
             if (
                 new_pos[0] < 0
-                or new_pos[0] >= self.width
-                or new_pos[1] < 0
-                or new_pos[1] >= self.height
+                or
+                new_pos[0] >= self.width
+                or
+                new_pos[1] < 0
+                or
+                new_pos[1] >= self.height
             ):
 
                 self.score -= 5
 
+            # -----------------------------------------
             # Wall collision
-            elif tuple(new_pos) in self.walls:
+            # -----------------------------------------
+
+            elif (
+                tuple(new_pos)
+                in self.walls
+            ):
 
                 self.score -= 5
 
+            # -----------------------------------------
             # Successful movement
+            # -----------------------------------------
+
             else:
 
                 self.agent_pos = new_pos
 
-                # Food collected
+                # Collect food
                 if (
                     tuple(self.agent_pos)
                     in self.food_positions
@@ -296,9 +351,9 @@ class VisualGridHuntGame:
 
                     self.score += 20
 
-        # ----------------------------------
+        # -----------------------------------------
         # Move opponents
-        # ----------------------------------
+        # -----------------------------------------
 
         for opponent in self.opponents:
 
@@ -315,7 +370,8 @@ class VisualGridHuntGame:
             if (
                 move == "Up"
                 and
-                opponent[1] < self.height - 1
+                opponent[1]
+                < self.height - 1
             ):
 
                 opponent[1] += 1
@@ -339,13 +395,16 @@ class VisualGridHuntGame:
             elif (
                 move == "Right"
                 and
-                opponent[0] < self.width - 1
+                opponent[0]
+                < self.width - 1
             ):
 
                 opponent[0] += 1
 
-            # Collision
-            if opponent == self.agent_pos:
+            if (
+                opponent
+                == self.agent_pos
+            ):
 
                 self.score -= 50
 
@@ -354,9 +413,13 @@ class VisualGridHuntGame:
     def is_done(self):
 
         return (
-            len(self.food_positions) == 0
-            or self.steps >= 60
-            or self.collision
+            len(
+                self.food_positions
+            ) == 0
+            or
+            self.steps >= 100
+            or
+            self.collision
         )
 
 
@@ -370,59 +433,91 @@ class GridGameGUI:
         num_food=15,
         num_opponents=0,
         walls=None,
-        agent_type="model"
+        agent_type="search",
+        search_algorithm="DFS"
     ):
 
         self.root = root
 
         self.root.title(
-            "IT3012 - Simple Reflex vs Model-Based Agent"
+            "IT3012 - Goal Based Search Agent"
         )
 
-        # ----------------------------------
+        # -----------------------------------------
         # Select Agent
-        # ----------------------------------
+        # -----------------------------------------
 
-        if agent_type.lower() == "simple":
+        if (
+            agent_type.lower()
+            == "simple"
+        ):
 
-            agent = SimpleReflexAgent()
+            agent = (
+                SimpleReflexAgent()
+            )
 
             self.agent_name = (
                 "Simple Reflex Agent"
             )
 
-        else:
+        elif (
+            agent_type.lower()
+            == "model"
+        ):
 
-            agent = ModelBasedAgent()
+            agent = (
+                ModelBasedAgent()
+            )
 
             self.agent_name = (
                 "Model-Based Agent"
             )
 
-        # ----------------------------------
-        # Create Environment
-        # ----------------------------------
+        else:
 
-        self.env = VisualGridHuntGame(
-            width=width,
-            height=height,
-            num_food=num_food,
-            num_opponents=num_opponents,
-            custom_walls=walls,
-            agent=agent
+            agent = (
+                SearchAgent()
+            )
+
+            # Select BFS / DFS / UCS
+            agent.active_algo = (
+                search_algorithm.upper()
+            )
+
+            self.agent_name = (
+                "Search Agent - "
+                + agent.active_algo
+            )
+
+        # -----------------------------------------
+        # Environment
+        # -----------------------------------------
+
+        self.env = (
+            VisualGridHuntGame(
+                width=width,
+                height=height,
+                num_food=num_food,
+                num_opponents=num_opponents,
+                custom_walls=walls,
+                agent=agent
+            )
         )
 
-        # ----------------------------------
-        # GUI Setup
-        # ----------------------------------
+        # -----------------------------------------
+        # Canvas
+        # -----------------------------------------
 
         max_canvas_size = 600
 
         self.cell_size = max(
             20,
             min(
-                max_canvas_size // self.env.width,
-                max_canvas_size // self.env.height
+                max_canvas_size
+                // self.env.width,
+
+                max_canvas_size
+                // self.env.height
             )
         )
 
@@ -449,7 +544,8 @@ class GridGameGUI:
             root,
             text=(
                 f"{self.agent_name} | "
-                f"Score: 0 | Steps: 0"
+                f"Score: 0 | "
+                f"Steps: 0"
             ),
             font=("Arial", 14)
         )
@@ -477,9 +573,9 @@ class GridGameGUI:
             "all"
         )
 
-        # ----------------------------------
-        # Draw Grid
-        # ----------------------------------
+        # -----------------------------------------
+        # Grid
+        # -----------------------------------------
 
         for x in range(
             self.env.width
@@ -514,11 +610,15 @@ class GridGameGUI:
                     x, y
                 ) not in self.env.walls:
 
-                    cell_fill = "#f1f5f9"
+                    cell_fill = (
+                        "#f1f5f9"
+                    )
 
                 else:
 
-                    cell_fill = "#64748b"
+                    cell_fill = (
+                        "#64748b"
+                    )
 
                 self.canvas.create_rectangle(
                     x1,
@@ -529,9 +629,9 @@ class GridGameGUI:
                     outline="#cbd5e1"
                 )
 
-        # ----------------------------------
-        # Draw Food
-        # ----------------------------------
+        # -----------------------------------------
+        # Food
+        # -----------------------------------------
 
         for fx, fy in (
             self.env.food_positions
@@ -565,9 +665,9 @@ class GridGameGUI:
                 outline="#d97706"
             )
 
-        # ----------------------------------
-        # Draw Opponents
-        # ----------------------------------
+        # -----------------------------------------
+        # Opponents
+        # -----------------------------------------
 
         for ox, oy in (
             self.env.opponents
@@ -601,9 +701,9 @@ class GridGameGUI:
                 outline="#7a0000"
             )
 
-        # ----------------------------------
-        # Draw Agent
-        # ----------------------------------
+        # -----------------------------------------
+        # Agent
+        # -----------------------------------------
 
         ax, ay = (
             self.env.agent_pos
@@ -647,12 +747,12 @@ class GridGameGUI:
 
             if not self.env.is_done():
 
-                # Get partial percept
+                # Get percept
                 percept = (
                     self.env.get_percept()
                 )
 
-                # Agent chooses action
+                # Ask agent for action
                 action = (
                     self.env.agent.sense_and_act(
                         percept
@@ -664,13 +764,11 @@ class GridGameGUI:
                     action
                 )
 
-                # Redraw
                 self.draw_grid()
 
                 self.label.config(
                     text=(
                         f"{self.agent_name} | "
-                        f"Percept: {percept} | "
                         f"Action: {action} | "
                         f"Score: {self.env.score} | "
                         f"Steps: {self.env.steps}"
@@ -678,7 +776,7 @@ class GridGameGUI:
                 )
 
                 self.root.after(
-                    250,
+                    200,
                     step
                 )
 
@@ -715,13 +813,30 @@ if __name__ == "__main__":
 
     root = tk.Tk()
 
+    # ---------------------------------------------
+    # LAB 3 SETTINGS
+    # ---------------------------------------------
+    #
+    # Choose:
+    #
+    # agent_type="search"
+    #
+    # and choose:
+    #
+    # search_algorithm="BFS"
+    # search_algorithm="DFS"
+    # search_algorithm="UCS"
+    #
+    # ---------------------------------------------
+
     app = GridGameGUI(
         root,
         width=12,
         height=12,
-        num_food=15,
+        num_food=5,
         num_opponents=0,
-        agent_type="model"
+        agent_type="search",
+        search_algorithm="BFS"
     )
 
     root.mainloop()

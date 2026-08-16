@@ -1,36 +1,60 @@
-from grid_game import GridHuntGame
-from agent import (
-    SimpleReflexAgent,
-    ModelBasedAgent
-)
+from agent import SearchAgent
+from visual_grid_game import VisualGridHuntGame
 
 
-def run_agent(agent, title):
+def run_search_agent(
+    algorithm
+):
 
-    environment = GridHuntGame()
+    print("=" * 60)
 
-    print("=" * 50)
-    print(title)
-    print("=" * 50)
+    print(
+        "Running Search Agent:",
+        algorithm
+    )
+
+    print("=" * 60)
+
+    # Create agent
+    agent = SearchAgent()
+
+    # Select algorithm
+    agent.active_algo = (
+        algorithm
+    )
+
+    # Create environment
+    environment = (
+        VisualGridHuntGame(
+            width=12,
+            height=12,
+            num_food=5,
+            num_opponents=0,
+            agent=agent
+        )
+    )
 
     while not environment.is_done():
 
-        # Agent receives only its local percept
-        percept = environment.get_percept(agent)
-
-        # Agent chooses an action
-        action = agent.sense_and_act(
-            percept
+        # Get current percept
+        percept = (
+            environment.get_percept()
         )
 
-        # Environment executes the action
+        # Agent generates/executes plan
+        action = (
+            agent.sense_and_act(
+                percept
+            )
+        )
+
+        # Execute physical action
         environment.execute_action(
-            agent,
             action
         )
 
         print(
-            f"Percept: {percept}"
+            f"Step: {environment.steps}"
         )
 
         print(
@@ -38,55 +62,54 @@ def run_agent(agent, title):
         )
 
         print(
-            f"Score: {environment.score}"
+            f"Position: "
+            f"{environment.agent_pos}"
         )
 
         print(
-            f"Steps: {environment.steps}"
+            f"Remaining food: "
+            f"{len(environment.food_positions)}"
         )
 
         print("-" * 30)
 
+    print()
+
     print(
-        f"Game Over!"
+        f"{algorithm} finished."
     )
 
     print(
-        f"Final Score: {environment.score}"
+        f"Final Score: "
+        f"{environment.score}"
     )
 
     print(
-        f"Total Steps: {environment.steps}"
+        f"Total Steps: "
+        f"{environment.steps}"
     )
 
     print()
 
 
-def run_grid_hunt():
+def run_all_algorithms():
 
-    # ------------------------------------------
-    # Test Simple Reflex Agent
-    # ------------------------------------------
-
-    simple_agent = SimpleReflexAgent()
-
-    run_agent(
-        simple_agent,
-        "SIMPLE REFLEX AGENT"
+    # BFS
+    run_search_agent(
+        "BFS"
     )
 
-    # ------------------------------------------
-    # Test Model-Based Agent
-    # ------------------------------------------
+    # DFS
+    run_search_agent(
+        "DFS"
+    )
 
-    model_agent = ModelBasedAgent()
-
-    run_agent(
-        model_agent,
-        "MODEL-BASED AGENT"
+    # UCS
+    run_search_agent(
+        "UCS"
     )
 
 
 if __name__ == "__main__":
 
-    run_grid_hunt()
+    run_all_algorithms()
