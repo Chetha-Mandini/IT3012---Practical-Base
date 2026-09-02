@@ -261,7 +261,7 @@ class GridGameGUI:
 
     def run_loop(self):
         self.btn.config(state="disabled")
-
+        self.env = VisualGridHuntGame(width=12, height=12, num_food=15, num_opponents=0)
         agent = SearchAgent() 
 
         def step():
