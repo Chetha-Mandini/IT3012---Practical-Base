@@ -1,55 +1,145 @@
-class SimpleReflexAgent:
-    """Step 1.2: Simple Reflex Agent (Stateless, Pure IF-THEN Rules)."""
+from collections import deque
+import heapq
+
+# agent.py
+class GreedyGridAgent:
+    """A simple agent that tries to move around systematically to clear the grid."""
+
     def __init__(self):
-        pass  # Strictly no internal memory state allowed
+        self.actions_pool = ['Up', 'Down', 'Left', 'Right']
+
+    def sense_and_act(self, percept: dict) -> str:
+        # If standing directly on food, or just wander / move towards coordinates
+        pos = percept['agent_pos']
+        # Simple heuristic or fallback random sweep
+        return random.choice(self.actions_pool)
+
+
+class SearchAgent:
+    def __init__(self):
+        self.plan = []
+        self.active_algo = 'BFS'
+        self.current_pos = (0, 0) 
 
     def sense_and_act(self, percept):
-        if percept.get('food_here'):
-            return 'suck'
-        elif percept.get('wall_ahead'):
-            return 'turn_left'
-        else:
-            return 'move_forward'
+        if len(self.plan) == 0:
+            all_food = percept['all_food']
+            walls = percept['walls']
+            grid_size = percept['grid_size']
+
+            if not all_food:
+                return "Stay"
+
+            closest_food =None
+            min_distance = float('inf')
+
+            for food in all_food:
+                distance = abs(self.current_pos[0] - food[0]) + abs(self.current_pos[1] - food[1])
+                if distance < min_distance:
+                    min_distance = distance
+                    closest_food = food
+
+            if self.active_algo == 'BFS':
+                found, new_plan = self.bfs_search(self.current_pos, closest_food, walls, grid_size)
+            elif self.active_algo == 'DFS':
+                found, new_plan = self.dfs_search(self.current_pos, closest_food, walls, grid_size)
+            elif self.active_algo == 'UCS':
+                found, new_plan = self.ucs_search(self.current_pos, closest_food, walls, grid_size)
+
+            # 4. Save the calculated path to our master plan
+            if found:
+                self.plan = new_plan
+
+        # 5. Execute the next step of the plan
+        if len(self.plan) > 0:
+            action = self.plan.pop(0) # Take the first action off the list
+            
+            # Update our internal position tracker so the agent knows where it moved
+            self.current_pos = self.get_next_position(self.current_pos, action)
+            return action
+            
+        return "Stay" # Fallback just in case
+
+    def get_next_position(self, current_pos, action):
+        x, y = current_pos
+        if action == 'Up':
+            return (x, y + 1)
+        elif action == 'Down':
+            return (x, y - 1)
+        elif action == 'Left':
+            return (x - 1, y)
+        elif action == 'Right':
+            return (x + 1, y)
+        return current_pos 
+
+    def is_valid_position(self, pos, walls, grid_size):
+        x, y = pos
+        width, height = grid_size
+
+        if x < 0 or x >=width or y < 0 or y >= height:
+            return False
+        if pos in walls:
+            return False
+        return True
+
+    def bfs_search(self, start, goal, walls, grid_size):
+
+        frontier = deque([(start, [])]) #(current_coordinate, path_history)
+        visited = set([start])
+
+        while frontier:
+            current, path = frontier.popleft()
+            if current == goal:
+                return True, path
+
+            for action in ['Up', 'Down', 'Left', 'Right']:
+                next_pos = self.get_next_position(current, action)
+                if self.is_valid_position(next_pos, walls, grid_size) and next_pos not in visited:
+                    visited.add(next_pos)
+                    new_path = path + [action]
+                    frontier.append((next_pos, new_path))
+        
+        return False, []
+    
+
+    def dfs_search(self,start,goal, walls, grid_size):
+        frontier = [(start, [])]  # (current_coordinate, path_history)
+        visited = set([start])
+
+        while frontier:
+            current, path = frontier.pop()
+            if current == goal:
+                return True, path
+
+            if current not in visited:
+                visited.add(current)
+
+                for action in ['Up', 'Down', 'Left', 'Right']:
+                    next_pos = self.get_next_position(current, action)
+                    if self.is_valid_position(next_pos, walls, grid_size):
+                        new_path = path + [action]
+                        frontier.append((next_pos, new_path))
+        
+        return False, []
 
 
-class ModelBasedAgent:
-    """Step 1.3: Model-Based Agent with memory state and transition tracker."""
-    def __init__(self):
-        self.visited_cells = set()
-        self.current_pos = (0, 0)
-        # Directions: 0: North (0, -1), 1: East (1, 0), 2: South (0, 1), 3: West (-1, 0)
-        self.facing_idx = 1
-        self.directions = [(0, -1), (1, 0), (0, 1), (-1, 0)]
-        self.last_action = None
+    def ucs_search(self,start,goal,walls,grid_size):
+        frontier = []
+        heapq.heappush(frontier, (0, start, []))  # (cost, current_coordinate, path_history)
+        visited = set()
 
-    def sense_and_act(self, percept):
-        # 1. Transition Model Update (update position/orientation from last action)
-        if self.last_action == 'move_forward':
-            dx, dy = self.directions[self.facing_idx]
-            self.current_pos = (self.current_pos[0] + dx, self.current_pos[1] + dy)
-        elif self.last_action == 'turn_left':
-            self.facing_idx = (self.facing_idx - 1) % 4
-        elif self.last_action == 'turn_right':
-            self.facing_idx = (self.facing_idx + 1) % 4
+        while frontier:
+            cost, current, path = heapq.heappop(frontier)
+            if current == goal:
+                return True, path
 
-        # 2. Sensor Model Update (record current state into memory)
-        self.visited_cells.add(self.current_pos)
+            if current not in visited:
+                visited.add(current)
 
-        # 3. Condition-Action Rules using Internal Memory State
-        if percept.get('food_here'):
-            action = 'suck'
-        elif percept.get('wall_ahead'):
-            action = 'turn_left'
-        else:
-            # Check if moving forward enters a cell already visited
-            dx, dy = self.directions[self.facing_idx]
-            next_pos = (self.current_pos[0] + dx, self.current_pos[1] + dy)
-
-            if next_pos in self.visited_cells:
-                # Loop mitigation rule: turn right to explore alternate options
-                action = 'turn_right'
-            else:
-                action = 'move_forward'
-
-        self.last_action = action
-        return action
+                for action in ['Up', 'Down', 'Left', 'Right']:
+                    next_pos = self.get_next_position(current, action)
+                    if self.is_valid_position(next_pos, walls, grid_size):
+                        new_path = path + [action]
+                        new_cost = cost + 1
+                        heapq.heappush(frontier, (new_cost, next_pos, new_path))
+        return False, []
